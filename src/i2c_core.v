@@ -22,7 +22,7 @@ module i2c_core #(
 );  
    
     // next_* registers for outputs ---------------------------------------------------------------------------------------------
-    reg [4:0] next_irq_status_out;
+    reg [4:0] next_irq_status_out; 
     reg [2*DATA_WIDTH-1:0] next_tx_count, next_rx_count;
     reg [DATA_WIDTH-1:0] next_rx_out;
     reg next_rx_fifo_w_en;
@@ -45,6 +45,7 @@ module i2c_core #(
     assign sda_oe = mode[3] ? sda_oe_m : sda_oe_s;
 
     assign rx_buf = mode[3] ? rx_buf_m : rx_buf_s;
+
     // S/P Detector ----------------------------------------------------------------------------------------------------------------
     wire start_detect, stop_detect;
 
@@ -66,7 +67,7 @@ module i2c_core #(
     i2c_master_driver #(   
         .SYS_CLK_FREQ_MHZ(SYS_CLK_FREQ_MHZ),
         .TIMEOUT_WIDTH(3*DATA_WIDTH)
-    ) u_driver (
+    ) u_master_driver (
         .clk(sys_clk),
         .rst_n(sys_rst_n),
         .trig(trig),

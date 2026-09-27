@@ -16,22 +16,28 @@ module apb4_i2c_top #(
     output reg [DATA_WIDTH-1:0] PRDATA,
 
     inout SCL, SDA
-);  
+);      
+
+    wire scl_oe, sda_oe;
 
     // 2FF Synchronizer ----------------------------------------------------------------------
+    wire scl_in, sda_in;
     wire scl_in_sync, sda_in_sync;
+
+    assign scl_in = scl_oe ? 1'b0 : SCL;
+    assign sda_in = sda_oe ? 1'b0 : SDA;
 
     i2c_sync2 u_sync_scl (
         .clk(PCLK),
         .rst_n(PRESETn),
-        .d(SCL),
+        .d(scl_in),
         .q(scl_in_sync)
     );
 
     i2c_sync2 u_sync_sda (
         .clk(PCLK),
         .rst_n(PRESETn),
-        .d(SDA),
+        .d(sda_in),
         .q(sda_in_sync)
     );
 
@@ -81,7 +87,7 @@ module apb4_i2c_top #(
 
     wire [DATA_WIDTH-1:0] rx_fifo_rdata;
 
-    wire [2:0] irq_clear;
+    wire [3:0] irq_clear;
 
     // Command fifo 
     fifo #(
@@ -146,11 +152,9 @@ module apb4_i2c_top #(
 
     // irq_status: | RX_FIFO_EMPTY | CMD_FIFO_FULL | ILLEGAL_ACCESS |  NACK  | ARB_LOST |  SCL_HUNG | BUS_BUSY |  SDA_HUNG |
     // bits (8)  : |       7       |       6       |        5       |    4   |     3    |     2     |     1    |     0     |
-    // Type      : |     Live      |     Live      |     Sticky     | Sticky |  Sticky  |   Fatal   |   Live   |   Fatal   |
+    // Type      : |     Sticky    |     Live      |     Sticky     | Sticky |  Sticky  |   Fatal   |   Live   |   Fatal   |
 
-    assign irq_status[6] = cmd_fifo_full;
-    assign irq_status[7] = rx_fifo_empty;
-
+    // Illegal Access (5)
     reg illegal_access;
     assign irq_status[5] = illegal_access;                                                                                                                       
 
@@ -165,11 +169,28 @@ module apb4_i2c_top #(
         end
     end
 
-    // irq_clear: | ARB_LOST | NACK | ILLEGAL_ACCESS |
-    // bits (3) : |     2    |   1  |       0        |
+    // CMD FIFO Full (6)
+    assign irq_status[6] = cmd_fifo_full;
 
-    assign irq_clear = ((PSEL && PENABLE && PWRITE) && (PADDR==`ADDR_IRQ_CLEAR)) ? PWDATA[2:0] : 3'b0;
+    // RX FIFO Empty (7)
+    reg rx_fifo_empty_irq;
+    assign irq_status[7] = rx_fifo_empty_irq;
+    
+    always @(posedge PCLK or negedge PRESETn) begin
+        if(!PRESETn)
+            rx_fifo_empty_irq <= 1'b0;
+        else if(rx_fifo_empty && (PSEL && PENABLE && !PWRITE) && (PADDR==`ADDR_RX_FIFO))
+            rx_fifo_empty_irq <= 1'b1;
+        else if(irq_clear[3])
+            rx_fifo_empty_irq <= 1'b0;
+    end
 
+    // --------------------------------------------------------------------------------------
+    // irq_clear: | RX_FIFO_EMPTY | ARB_LOST | NACK | ILLEGAL_ACCESS |
+    // bits (4) : |        3      |     2    |   1  |       0        |
+
+    assign irq_clear = ((PSEL && PENABLE && PWRITE) && (PADDR==`ADDR_IRQ_CLEAR)) ? PWDATA[3:0] : 4'b0;
+    
     assign PSLVERR = (PSEL && PENABLE) && (|irq_status);
 
     // APB address decoder -----------------------------------------------------------------------------------------------------
@@ -228,6 +249,7 @@ module apb4_i2c_top #(
         end
     end
     
+    // No wait states
     assign PREADY = 1'b1;
 
     // -------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,16 @@
+current_design apb4_i2c_top
+
+clock -name PCLK -domain domain_pclk -period 10 -edge {0 5}
+
+reset -name PRESETn -value 0
+
+input -name PADDR -clock PCLK
+input -name PSEL -clock PCLK
+input -name PENABLE -clock PCLK
+input -name PWRITE -clock PCLK
+input -name PWDATA -clock PCLK
+
+output -name PREADY -clock PCLK
+output -name PSLVERR -clock PCLK
+output -name PRDATA -clock PCLK
+

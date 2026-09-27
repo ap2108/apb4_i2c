@@ -8,15 +8,20 @@ module i2c_counter #(
     reg [COUNT_WIDTH-1:0] count;
 
     always @(posedge clk or negedge rst_n) begin
-        if(!rst_n) begin
-            count <= {COUNT_WIDTH{1'b0}};
-            done <= 1'b0;
-        end else if(en) begin
-            count <= (count >= max_count) ? {COUNT_WIDTH{1'b0}} : count + 1;
-            done <= (count >= max_count);
+        if (!rst_n) begin
+            count <= 0;
+            done  <= 1'b0;
+        end else if (!en) begin
+            done  <= 1'b0;
+            count <= reset_on_disable ? 0 : count;
         end else begin
-            done <= 1'b0;
-            count <= reset_on_disable ? {COUNT_WIDTH{1'b0}} : count;
+            if (count >= max_count) begin
+                count <= 0;
+                done  <= 1'b1;
+            end else begin
+                count <= count+1'b1;
+                done  <= 1'b0;
+            end
         end
     end
 endmodule

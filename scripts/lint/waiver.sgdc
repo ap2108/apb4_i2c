@@ -1,0 +1,14 @@
+waive -rule "W444" -file "apb4_i2c_top.v" \
+    -comment "I2C open drain bus requires driving 1'bz at toplevel pad"
+
+waive -rule "TristatePort-ML" -file "apb4_i2c_top.v" \
+    -comment "Toplevel SCL and SDA pins are inout ports"
+
+waive -rule "STARC05-2.5.1.2" -file "apb4_i2c_top.v" \
+    -comment "Tristate enable is driven by valid internal scl_oe/sda_oe control logic"
+
+waive -rule "SigAssignZ-ML" -file "apb4_i2c_top.v" \
+    -comment "SCL and SDA assignments drive 1'bz when output enable is inactive"
+
+waive -rule "STARC-2.3.4.3" -du "fifo" \
+    -comment "FIFO memory array registers do not require reset"

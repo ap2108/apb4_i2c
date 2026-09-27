@@ -23,13 +23,13 @@ module i2c_glitchfilter #(
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n)
-            count <= {COUNT_WIDTH{1'b0}};
+            count <= 0;
         else if(d_reg == q)
-            count <= {COUNT_WIDTH{1'b0}};
+            count <= 0;
         else if(count == MAX_GLITCH_COUNT-1)
-            count <= {COUNT_WIDTH{1'b0}};
+            count <= 0;
         else
-            count <= count + 1'b1;
+            count <= count+1;
     end
 
     always @(posedge clk or negedge rst_n) begin

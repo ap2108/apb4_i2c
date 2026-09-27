@@ -188,7 +188,7 @@ initial begin
     $display("============================================================");
     apb_write_master(`ADDR_MODE, 8'h08);
     apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRH, 8'h00);
-    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRL, 8'h00);
+    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRL, 8'h3A);
     apb_write_master(`ADDR_SCL_TIMEOUT2, 8'hFF);
     apb_write_master(`ADDR_SCL_TIMEOUT1, 8'hFF);
     apb_write_master(`ADDR_SCL_TIMEOUT0, 8'hFF);
@@ -198,7 +198,7 @@ initial begin
 
     apb_write_slave(`ADDR_MODE, 8'h00);
     apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRH, 8'h00);
-    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRL, 8'h00);
+    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRL, 8'h3A);
     apb_write_slave(`ADDR_SCL_TIMEOUT2, 8'hFF);
     apb_write_slave(`ADDR_SCL_TIMEOUT1, 8'hFF);
     apb_write_slave(`ADDR_SCL_TIMEOUT0, 8'hFF);
@@ -220,7 +220,7 @@ initial begin
     apb_write_master(`ADDR_TX_DATA, 8'h44);
     apb_write_master(`ADDR_TX_DATA, 8'h55);
     
-    #1000000; // Allow full transaction runtime
+    #4000000; // Allow full transaction runtime
 
     check_slave_rx(8'h11, 0);
     check_slave_rx(8'h22, 1);
@@ -229,7 +229,7 @@ initial begin
     check_slave_rx(8'h55, 4);
 
     // RESET FOR TEST 2
-    #1000000; 
+    #4000000; 
 
     PRESETn = 1'b0;
     repeat (5) @(posedge PCLK);
@@ -262,7 +262,7 @@ initial begin
     apb_write_master(`ADDR_RX_DATA, 8'h00);
     apb_write_master(`ADDR_RX_DATA, 8'h00);
 
-    #1000000; // Allow full transaction runtime
+    #4000000; // Allow full transaction runtime
 
     check_master_rx(8'hA1, 0);
     check_master_rx(8'hB2, 1);
@@ -275,12 +275,12 @@ initial begin
     else $display("TEST FAILED : TOTAL ERRORS = %0d", errors);
     $display("============================================================");
 
-    #1000000;
+    #4000000;
     $finish;
 end
 
 initial begin
-    #10000000;
+    #20000000;
     $display("\nTIMEOUT - SIMULATION DID NOT FINISH WITHIN EXPECTED DURATION");
     $finish;
 end
