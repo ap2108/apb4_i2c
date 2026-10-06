@@ -101,19 +101,9 @@ module i2c_master_driver #(
         endcase
     end
     
-    // Error handling FSM ---------------------------------------------------------------------------
+    // Response generator FSM ---------------------------------------------------------------------------
     reg running;
     reg recovery_running, next_recovery_running;
-    
-    localparam GF_DELAY = `NCYCLES(SYS_CLK_FREQ_MHZ, 50) + 3;
-    reg [GF_DELAY-1:0] sda_intent;
-
-    always @(posedge clk or negedge rst_n) begin
-        if(!rst_n)
-            sda_intent <= {GF_DELAY{1'b1}};
-        else
-            sda_intent <= {!sda_oe_next, sda_intent[GF_DELAY-1:1]};
-    end
 
     reg [2:0] resp_reg;
 
@@ -129,11 +119,10 @@ module i2c_master_driver #(
             `RESP_IDLE, `RESP_INPROGRESS, `RESP_BUS_BUSY: begin
                 if(scl_err) 
                     resp = `RESP_SCL_ERR;
-                else if(state==SDA_STUCK_ERROR && !sda_in)
+                else if(state==SDA_STUCK_ERROR)
                     resp = `RESP_SDA_ERR;
                 else begin
-                    if(sda_intent[0] && !sda_in && 
-                        (state==START_SU || state==STOP_HD || state==TX_HIGH))
+                    if ((state==START_SU && !sda_in) || (state==TX_HIGH && !sda_oe && !sda_in && !recovery_running))
                         resp = `RESP_ARB_LOST;
                     else
                         resp = running ? `RESP_INPROGRESS : ((state==BUS_BUSY) ? `RESP_BUS_BUSY : `RESP_IDLE);
@@ -236,7 +225,7 @@ module i2c_master_driver #(
                 end
                 BUS_BUFFER_WAIT: begin
                     running = 1'b1;
-                    count_EN = count_done ? 1'b0 : 1'b1;
+                    count_EN = count_done ? 1'b0 : scl_in;
                     count_value = t_buf;
                     next_state = count_done ? IDLE : BUS_BUFFER_WAIT;
                     {scl_oe_next, sda_oe_next} = 2'b00;
@@ -268,12 +257,16 @@ module i2c_master_driver #(
                     count_value = t_high;
 
                     if(count_done) begin
-                        if(ack) begin
-                            next_state = IDLE;
-                        end else begin
-                            next_bit_idx = (bit_idx==0) ? 3'd7 : bit_idx-1;
-                            next_state = (bit_idx==3'd0) ? RX_LOW : TX_LOW;
-                            next_ack = (bit_idx==3'd0);
+                        if(recovery_running && sda_in)
+                            next_state = STOP_LOW;
+                        else begin
+                            if(ack) begin
+                                next_state = IDLE;
+                            end else begin
+                                next_bit_idx = (bit_idx==0) ? 3'd7 : bit_idx-1;
+                                next_state = (bit_idx==3'd0) ? RX_LOW : TX_LOW;
+                                next_ack = (bit_idx==3'd0);
+                            end
                         end
                     end 
                     {scl_oe_next, sda_oe_next} = {1'b0, (recovery_running ? 1'b0 : !tx_data[bit_idx])};
@@ -292,7 +285,7 @@ module i2c_master_driver #(
 
                     if(count_done) begin
                         if(recovery_running)
-                            next_state = SDA_STUCK_ERROR;
+                            next_state = sda_in ? STOP_LOW : SDA_STUCK_ERROR;
                         else begin
                             if(ack) begin
                                 next_state = IDLE;
@@ -327,7 +320,6 @@ module i2c_master_driver #(
                     {scl_oe_next, sda_oe_next} = 2'b00;
                 end
                 SDA_STUCK_ERROR: begin
-                    next_state = (resp_reg==`RESP_SDA_ERR) ? SDA_STUCK_ERROR : IDLE;
                     {scl_oe_next, sda_oe_next} = 2'b00;
                 end
                 default: begin

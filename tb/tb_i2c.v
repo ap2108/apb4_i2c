@@ -172,6 +172,49 @@ begin
 end
 endtask
 
+task automatic read_status_master;
+    reg [7:0] tx_count_high;
+    reg [7:0] tx_count_low;
+    reg [7:0] rx_count_high;
+    reg [7:0] rx_count_low;
+    reg [7:0] irq_status;
+begin
+    apb_read_master(`ADDR_TX_COUNT_HIGH, tx_count_high);
+    apb_read_master(`ADDR_TX_COUNT_LOW,  tx_count_low);
+    apb_read_master(`ADDR_RX_COUNT_HIGH, rx_count_high);
+    apb_read_master(`ADDR_RX_COUNT_LOW,  rx_count_low);
+    apb_read_master(`ADDR_IRQ_STATUS,     irq_status);
+
+    $display("[%0t] MASTER STATUS: TX_COUNT = %02h%02h, RX_COUNT = %02h%02h, IRQ_STATUS = %b",
+             $time,
+             tx_count_high, tx_count_low,
+             rx_count_high, rx_count_low,
+             irq_status);
+end
+endtask
+
+
+task automatic read_status_slave;
+    reg [7:0] tx_count_high;
+    reg [7:0] tx_count_low;
+    reg [7:0] rx_count_high;
+    reg [7:0] rx_count_low;
+    reg [7:0] irq_status;
+begin
+    apb_read_slave(`ADDR_TX_COUNT_HIGH, tx_count_high);
+    apb_read_slave(`ADDR_TX_COUNT_LOW,  tx_count_low);
+    apb_read_slave(`ADDR_RX_COUNT_HIGH, rx_count_high);
+    apb_read_slave(`ADDR_RX_COUNT_LOW,  rx_count_low);
+    apb_read_slave(`ADDR_IRQ_STATUS,     irq_status);
+
+    $display("[%0t] SLAVE STATUS: TX_COUNT = %02h%02h, RX_COUNT = %02h%02h, IRQ_STATUS = %b",
+             $time,
+             tx_count_high, tx_count_low,
+             rx_count_high, rx_count_low,
+             irq_status);
+end
+endtask
+
 initial begin
     errors = 0;
     PRESETn = 1'b0;
@@ -187,7 +230,7 @@ initial begin
     $display("TEST 1: MASTER TX -> SLAVE RX");
     $display("============================================================");
     apb_write_master(`ADDR_MODE, 8'h08);
-    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRH, 8'h00);
+    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRH, 8'h02);
     apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRL, 8'h3A);
     apb_write_master(`ADDR_SCL_TIMEOUT2, 8'hFF);
     apb_write_master(`ADDR_SCL_TIMEOUT1, 8'hFF);
@@ -197,7 +240,7 @@ initial begin
     apb_write_master(`ADDR_SDA_TIMEOUT0, 8'hFF);
 
     apb_write_slave(`ADDR_MODE, 8'h00);
-    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRH, 8'h00);
+    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRH, 8'h02);
     apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRL, 8'h3A);
     apb_write_slave(`ADDR_SCL_TIMEOUT2, 8'hFF);
     apb_write_slave(`ADDR_SCL_TIMEOUT1, 8'hFF);
@@ -214,6 +257,12 @@ initial begin
 
 
     #1000;
+
+    $display("\n INITIAL STATUS CHECK: ");
+    read_status_master();
+    read_status_slave();
+    $display("\n");
+
     apb_write_master(`ADDR_TX_DATA, 8'h11);
     apb_write_master(`ADDR_TX_DATA, 8'h22);
     apb_write_master(`ADDR_TX_DATA, 8'h33);
@@ -227,6 +276,10 @@ initial begin
     check_slave_rx(8'h33, 2);
     check_slave_rx(8'h44, 3);
     check_slave_rx(8'h55, 4);
+
+    $display("\n FINAL STATUS CHECK: ");
+    read_status_master();
+    read_status_slave();
 
     // RESET FOR TEST 2
     #4000000; 
@@ -250,6 +303,11 @@ initial begin
 
     repeat(100) @(posedge PCLK);
 
+    $display("\n INITIAL STATUS CHECK: ");
+    read_status_master();
+    read_status_slave();
+    $display("\n");
+
     apb_write_slave(`ADDR_TX_DATA, 8'hA1);
     apb_write_slave(`ADDR_TX_DATA, 8'hB2);
     apb_write_slave(`ADDR_TX_DATA, 8'hC3);
@@ -269,13 +327,15 @@ initial begin
     check_master_rx(8'hC3, 2);
     check_master_rx(8'hD4, 3);
     check_master_rx(8'hE5, 4);
+    
+    $display("\n FINAL STATUS CHECK: ");
+    read_status_master();
+    read_status_slave();
 
     $display("\n============================================================");
     if (errors == 0) $display("ALL TESTS PASS");
     else $display("TEST FAILED : TOTAL ERRORS = %0d", errors);
     $display("============================================================");
-
-    #4000000;
     $finish;
 end
 

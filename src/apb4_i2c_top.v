@@ -73,7 +73,7 @@ module apb4_i2c_top #(
 
     // Interconnect nets
     wire cmd_fifo_empty, rx_fifo_full;
-    wire [CMD_HEADER_WIDTH+DATA_WIDTH-1:0] i2c_cmd;
+    wire [CMD_HEADER_WIDTH+DATA_WIDTH-1:0] i2c_cmd, i2c_cmd_next;
     wire [DATA_WIDTH-1:0] i2c_rx_data;
 
     wire cmd_fifo_r_en, rx_fifo_w_en;
@@ -90,7 +90,7 @@ module apb4_i2c_top #(
     wire [3:0] irq_clear;
 
     // Command fifo 
-    fifo #(
+    cmd_fifo #(
         .DATA_WIDTH(CMD_HEADER_WIDTH+DATA_WIDTH),
         .DEPTH(FIFO_DEPTH)
     ) u_cmd_fifo(
@@ -101,7 +101,8 @@ module apb4_i2c_top #(
         .wr_data({cmd, PWDATA}),
         .rd_data(i2c_cmd),
         .full(cmd_fifo_full),
-        .empty(cmd_fifo_empty)
+        .empty(cmd_fifo_empty),
+        .cmd_next(i2c_cmd_next)
     );
 
     // RX Fifo 
@@ -129,7 +130,8 @@ module apb4_i2c_top #(
         .sys_rst_n(PRESETn),
         .cmd_fifo_empty(cmd_fifo_empty),
         .rx_fifo_full(rx_fifo_full),
-        .cmd_in(i2c_cmd),     
+        .cmd_in(i2c_cmd),   
+        .cmd_next(i2c_cmd_next),  
         .cmd_fifo_r_en(cmd_fifo_r_en),     
         .rx_fifo_w_en(rx_fifo_w_en),      
         .rx_out(i2c_rx_data),      
@@ -200,7 +202,7 @@ module apb4_i2c_top #(
         PRDATA = {DATA_WIDTH{1'b0}};
         
         if(PSEL && PENABLE) begin
-            if(PWRITE) begin
+            if(PWRITE && PSLVERR==1'b0) begin
                 if(!cmd_fifo_full) begin
                     cmd_fifo_w_en = 1'b1;
                     case(PADDR)
