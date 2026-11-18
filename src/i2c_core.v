@@ -122,7 +122,7 @@ module i2c_core #(
     reg [3:0] state, next_state;
 
     localparam [3:0] IDLE=4'd0, LOAD=4'd1, START=4'd2, ADDR1=4'd3, ADDR2=4'd4, TX_DATA=4'd5, 
-        RX_DATA=4'd6, STOP=4'd7, ERROR_STICKY=4'd8, SLV_TX=4'd9, SLV_TX_WAIT=4'd10, SLV_RX=4'd11, SLV_RX_WAIT=4'd12;
+        RX_DATA=4'd6, STOP=4'd7, ERROR_STICKY=4'd8, SLV_TX=4'd9, SLV_TX_WAIT=4'd10, SLV_RX=4'd11, SLV_RX_WAIT=4'd12, NACK_DRAIN=4'd13;
     
     // Byte level FSM logic -------------------------------------------------------------------------------------------------------
     reg addr10_addressed, next_addr10_addressed;
@@ -371,8 +371,20 @@ module i2c_core #(
                         end
                     end
                     STOP: begin
-                        if(resp==`RESP_IDLE) 
-                            next_state = (|irq_status_out[4:3]) ? ERROR_STICKY : IDLE;        
+                        if (resp == `RESP_IDLE) begin
+                            if (irq_status_out[4])
+                                next_state = NACK_DRAIN;
+                            else
+                                next_state = irq_status_out[3] ? ERROR_STICKY : IDLE;
+                        end     
+                    end
+                    NACK_DRAIN: begin
+                        if(cmd_fifo_empty) 
+                            next_state = ERROR_STICKY;
+                        else if ((cmd_in_header==`CMD_TX) || (cmd_in_header==`CMD_RX))
+                            cmd_fifo_r_en = 1'b1;
+                        else 
+                            next_state = ERROR_STICKY;
                     end
                     ERROR_STICKY: begin
                         next_irq_status_out[4] = irq_clear[0] ? 1'b0 : irq_status_out[4];   // NACK 

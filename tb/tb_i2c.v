@@ -229,7 +229,7 @@ initial begin
     $display("\n============================================================");
     $display("TEST 1: MASTER TX -> SLAVE RX");
     $display("============================================================");
-    apb_write_master(`ADDR_MODE, 8'h08);
+    apb_write_master(`ADDR_MODE, 8'h09);
     apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRH, 8'h02);
     apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRL, 8'h3A);
     apb_write_master(`ADDR_SCL_TIMEOUT2, 8'hFF);
@@ -239,7 +239,7 @@ initial begin
     apb_write_master(`ADDR_SDA_TIMEOUT1, 8'hFF);
     apb_write_master(`ADDR_SDA_TIMEOUT0, 8'hFF);
 
-    apb_write_slave(`ADDR_MODE, 8'h00);
+    apb_write_slave(`ADDR_MODE, 8'h01);
     apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRH, 8'h02);
     apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRL, 8'h3A);
     apb_write_slave(`ADDR_SCL_TIMEOUT2, 8'hFF);
@@ -293,13 +293,13 @@ initial begin
     $display("\n============================================================");
     $display("TEST 2: MASTER RX <- SLAVE TX");
     $display("============================================================");
-    apb_write_master(`ADDR_MODE, 8'h08);
-    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRH, 8'h00);
-    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRL, 8'h00);
+    apb_write_master(`ADDR_MODE, 8'h09);
+    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRH, 8'h02);
+    apb_write_master(`ADDR_I2C_SLV_TARGET_ADDRL, 8'h3A);
 
-    apb_write_slave(`ADDR_MODE, 8'h00);
-    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRH, 8'h00);
-    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRL, 8'h00);
+    apb_write_slave(`ADDR_MODE, 8'h01);
+    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRH, 8'h02);
+    apb_write_slave(`ADDR_I2C_SLV_SELF_ADDRL, 8'h3A);
 
     repeat(100) @(posedge PCLK);
 

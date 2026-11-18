@@ -4,7 +4,7 @@ module apb4_i2c_top #(
     parameter PCLK_FREQ_MHZ=100,
     parameter ADDR_WIDTH=5,
     parameter CMD_HEADER_WIDTH=4,
-    parameter DATA_WIDTH=8,
+    parameter DATA_WIDTH=32,
     parameter FIFO_DEPTH=32
 )(
     input PCLK, PRESETn, 
@@ -145,8 +145,7 @@ module apb4_i2c_top #(
         .sda_oe(sda_oe)
     );
 
-    // I2C Bus --------------------------------------------------------------------------------------------------------------
-
+    // I2C Bus ---------------------------------------------------------------------------------------------------------------
     assign SCL = scl_oe ? 1'b0 : 1'bz;
     assign SDA = sda_oe ? 1'b0 : 1'bz;
     
@@ -201,8 +200,8 @@ module apb4_i2c_top #(
         cmd = `CMD_IGNORE;
         PRDATA = {DATA_WIDTH{1'b0}};
         
-        if(PSEL && PENABLE) begin
-            if(PWRITE && PSLVERR==1'b0) begin
+        if(PSEL && PENABLE && PSLVERR==1'b0) begin
+            if(PWRITE) begin
                 if(!cmd_fifo_full) begin
                     cmd_fifo_w_en = 1'b1;
                     case(PADDR)

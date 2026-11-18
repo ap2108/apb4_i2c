@@ -25,7 +25,9 @@ module i2c_slv_driver (
     reg [3:0] state, next_state;
 
     // Slave Bit level FSM logic ----------------------------------------------------------------------------
-    reg addr10_second_byte, next_addr10_second_byte;
+    reg addr10_secondbyte, next_addr10_secondbyte;
+    reg addr10_addressed, next_addr10_addressed;
+
     reg rw, next_rw, next_xfr_ready;
 
     reg [2:0] bit_idx, next_bit_idx;
@@ -40,13 +42,15 @@ module i2c_slv_driver (
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             bit_idx <= 3'd7;
-            addr10_second_byte <= 1'b0;
+            addr10_secondbyte <= 1'b0;
+            addr10_addressed <= 1'b0;
             rw <= 1'b1;
             state <= IDLE;  
             xfr_ready <= 1'b0;
         end else begin
             bit_idx <= next_bit_idx;
-            addr10_second_byte <= next_addr10_second_byte;
+            addr10_secondbyte <= next_addr10_secondbyte;
+            addr10_addressed <= next_addr10_addressed;
             rw <= next_rw;
             state <= next_state;
             xfr_ready <= next_xfr_ready;
@@ -57,7 +61,8 @@ module i2c_slv_driver (
         next_state = state;
         next_rw = rw;
         next_bit_idx = bit_idx;
-        next_addr10_second_byte = addr10_second_byte;
+        next_addr10_secondbyte = addr10_secondbyte;
+        next_addr10_addressed = addr10_addressed;
 
         next_xfr_ready = 1'b0;
         {scl_oe, sda_oe} = 2'b00;
@@ -69,11 +74,13 @@ module i2c_slv_driver (
         end else begin
             case(state)
                 IDLE: begin
-                    next_addr10_second_byte = 1'b0;
                     next_bit_idx = 3'd7;
+                    next_addr10_addressed = 1'b0;
+                    next_addr10_secondbyte = 1'b0;
                 end
                 START: begin
                     next_state = !scl_in ? ADDR_LOW : START;
+                    next_addr10_secondbyte = 1'b0;
                 end
                 ADDR_LOW: begin
                     next_state = scl_in ? ADDR_HIGH : ADDR_LOW;
@@ -84,13 +91,19 @@ module i2c_slv_driver (
 
                         if(bit_idx==3'd0) begin
                             if(self_slv_addr_10bit) begin
-                                if(addr10_second_byte) begin
+                                if(addr10_secondbyte) begin
                                     next_state = (rx_data==self_slv_addr[7:0]) ? ADDR_ACK_LOW : IDLE;
+                                    next_addr10_secondbyte = 1'b0;
+                                    next_addr10_addressed = (rx_data==self_slv_addr[7:0]) ? 1'b1 : 1'b0;
                                 end else begin
-                                    next_state = (rx_data[7:1]=={5'b11110, self_slv_addr[9:8]}) ? ADDR_ACK_LOW : IDLE;
-                                    next_rw = rx_data[0];
-                                    next_addr10_second_byte = 1'b1;
-                                end
+                                    if (rx_data[7:1]=={5'b11110, self_slv_addr[9:8]}) begin
+                                        next_state = rx_data[0] ? (addr10_addressed ? ADDR_ACK_LOW : IDLE) : ADDR_ACK_LOW;
+                                        next_rw = rx_data[0];
+                                        next_addr10_secondbyte = rx_data[0] ? 1'b0 : 1'b1;
+                                    end else begin
+                                        next_state = IDLE;
+                                    end
+                                end  
                             end else begin 
                                 next_state = (rx_data[7:1]==self_slv_addr[6:0]) ? ADDR_ACK_LOW : IDLE;
                                 next_rw = rx_data[0];
@@ -101,7 +114,7 @@ module i2c_slv_driver (
                     end
                 end
                 ADDR_ACK_LOW: begin
-                    if((tx_en&&rw) || (rx_en&&!rw)) begin
+                    if((tx_en&&rw) || (rx_en&&!rw) || (self_slv_addr_10bit && !rw && (addr10_secondbyte || addr10_addressed))) begin
                         next_state = scl_in ? ADDR_ACK_HIGH : ADDR_ACK_LOW;
                         sda_oe = 1'b1;
                     end else begin
@@ -111,7 +124,7 @@ module i2c_slv_driver (
                 ADDR_ACK_HIGH: begin
                     sda_oe = 1'b1;
                     if(!scl_in) begin
-                        if(self_slv_addr_10bit && !addr10_second_byte) begin
+                        if(self_slv_addr_10bit && addr10_secondbyte) begin
                             next_state = ADDR_LOW;
                         end else begin
                             next_state = rw ? TX_LOW : RX_LOW;

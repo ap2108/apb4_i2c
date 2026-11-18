@@ -28,7 +28,7 @@ module fifo #(
         end
     end
 
-    always @(posedge clk ) begin
+    always @(posedge clk ) begin 
         if(w_en && !full) begin
             mem[wr_ptr] <= wr_data;
         end

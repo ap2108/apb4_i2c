@@ -25,7 +25,7 @@ module i2c_master_driver #(
 
     // Bit level FSM states -------------------------------------------------------------------
     localparam [3:0] IDLE=0, START_SU=1, START_HD=2, TX_LOW=3, TX_HIGH=4, RX_LOW=5, RX_HIGH=6, 
-        STOP_LOW=7, STOP_SU=8, STOP_HD=9, BUS_BUSY=10, BUS_BUFFER_WAIT=11, SDA_STUCK_ERROR=12;
+        STOP_LOW=7, STOP_SU=8, STOP_HD=9, BUS_BUSY=10, BUS_BUFFER_WAIT=11, SDA_STUCK_ERROR=12, RESTART_LOW=13;
         
     reg [3:0] state, next_state;
 
@@ -209,7 +209,7 @@ module i2c_master_driver #(
                             next_state = BUS_BUSY;
                         end else begin
                             case(trig)
-                                `TRIG_START: next_state = START_SU;
+                                `TRIG_START: next_state = ack ? RESTART_LOW : START_SU;
                                 `TRIG_TX: next_state = TX_LOW;
                                 `TRIG_RX: next_state = RX_LOW;
                                 `TRIG_STOP: next_state = STOP_LOW;
@@ -229,6 +229,16 @@ module i2c_master_driver #(
                     count_value = t_buf;
                     next_state = count_done ? IDLE : BUS_BUFFER_WAIT;
                     {scl_oe_next, sda_oe_next} = 2'b00;
+                end
+                RESTART_LOW: begin
+                    running = 1'b1;
+                    count_EN = count_done ? 1'b0 : !scl_in;
+                    counter_reset_on_disable = 1'b1;
+                    count_value = t_low;
+
+                    next_state = count_done ? START_SU : RESTART_LOW;
+
+                    {scl_oe_next, sda_oe_next} = 2'b10;
                 end
                 START_SU: begin
                     running = 1'b1;
